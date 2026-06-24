@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kaza Namazı Takibi</title>
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Kaza Namazı Takibi&quot;,&quot;short_name&quot;:&quot;Namaz Takip&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23FDF6ED&quot;,&quot;theme_color&quot;:&quot;%23778873&quot;}" />
+  <meta name="theme-color" content="#778873" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Namaz Takip" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #778873;
+      --green-light: #A1BC98;
+      --cream: #FDF6ED;
+      --beige: #DCCFC0;
+      --green-dark: #5e6e5a;
+      --text: #2d3a2a;
+      --text-muted: #5a6654;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4ede2;
+      min-height: 100dvh;
+      color: var(--text);
+    }
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      background: var(--cream);
+      display: flex;
+      flex-direction: column;
+    }
+    /* HEADER */
+    .app-header {
+      background: var(--green);
+      color: #fff;
+      padding: 18px 20px 14px;
+      text-align: center;
+    }
+    .app-header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
+    .app-header p { font-size: 12px; opacity: 0.8; margin-top: 3px; }
+
+    /* TABS */
+    .tabs {
+      display: flex;
+      background: var(--green);
+      padding: 0 20px 12px;
+      gap: 8px;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.8);
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab.active {
+      background: #fff;
+      color: var(--green);
+    }
+
+    /* CONTENT */
+    .content { flex: 1; padding: 16px; overflow-y: auto; }
+
+    /* DATE NAV */
+    .date-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid var(--beige);
+      padding: 10px 14px;
+    }
+    .date-nav button {
+      background: var(--cream);
+      border: 1px solid var(--beige);
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      cursor: pointer;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .date-nav button:hover { background: var(--beige); }
+    .date-nav button:active { transform: scale(0.95); }
+    .date-info { text-align: center; flex: 1; }
+    .date-info .weekday { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .date-info .date-str { font-size: 15px; font-weight: 600; color: var(--text); }
+    .date-info .is-today { font-size: 11px; color: var(--green-light); font-weight: 500; }
+
+    /* PRAYERS */
+    .prayers-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .prayer-card {
+      background: #fff;
+      border: 2px solid var(--beige);
+      border-radius: 14px;
+      padding: 14px 8px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .prayer-card:active { transform: scale(0.96); }
+    .prayer-card.done {
+      background: var(--green-light);
+      border-color: var(--green);
+    }
+    .prayer-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--beige);
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.15s;
+    }
+    .prayer-card.done .prayer-icon {
+      background: var(--green);
+      border-color: var(--green-dark);
+    }
+    .prayer-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .prayer-card.done .prayer-name { color: #fff; }
+    .prayer-check {
+      font-size: 11px;
+      color: var(--beige);
+    }
+    .prayer-card.done .prayer-check { color: rgba(255,255,255,0.85); }
+
+    /* PROGRESS */
+    .progress-card {
+      background: #fff;
+      border: 1px solid var(--beige);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .progress-top span { font-size: 13px; color: var(--text-muted); }
+    .progress-top strong { font-size: 20px; color: var(--green); }
+    .progress-bar-bg {
+      background: var(--beige);
+      border-radius: 6px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 8px;
+      background: linear-gradient(90deg, var(--green), var(--green-light));
+      border-radius: 6px;
+      transition: width 0.4s ease;
+    }
+
+    /* TODAY BTN */
+    .today-btn {
+      width: 100%;
+      padding: 11px;
+      background: var(--cream);
+      border: 1.5px solid var(--beige);
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .today-btn:hover { background: var(--beige); }
+
+    /* HISTORY */
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .history-list { display: flex; flex-direction: column; gap: 7px; }
+    .history-row {
+      background: #fff;
+      border: 1px solid var(--beige);
+      border-radius: 10px;
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .history-row.today-row { border-color: var(--green-light); }
+    .h-date { font-size: 12px; color: var(--text-muted); min-width: 70px; }
+    .h-date strong { display: block; font-size: 13px; color: var(--text); font-weight: 600; }
+    .h-dots { display: flex; gap: 4px; flex: 1; justify-content: center; }
+    .h-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      border: 1.5px solid var(--beige);
+      background: var(--cream);
+    }
+    .h-dot.done { background: var(--green); border-color: var(--green-dark); }
+    .h-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--green);
+      min-width: 28px;
+      text-align: right;
+    }
+    .h-count.full { color: var(--green-dark); }
+
+    /* STATS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--beige);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-val { font-size: 26px; font-weight: 700; color: var(--green); }
+    .stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+    .empty-msg {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* PRAYER ICONS */
+    .pi-sabah::before { content: '🌅'; }
+    .pi-ogle::before { content: '☀️'; }
+    .pi-ikindi::before { content: '🌤️'; }
+    .pi-aksam::before { content: '🌆'; }
+    .pi-yatsi::before { content: '🌙'; }
+    .pi-vitir::before { content: '⭐'; }
+
+    .check-icon { font-size: 16px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="app-header">
+    <h1>🕌 Kaza Namazı Takibi</h1>
+    <p>Günlük namazlarını işaretle, geçmişini takip et</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('daily')">📅 Günlük</button>
+    <button class="tab" onclick="showTab('history')">📋 Geçmiş</button>
+    <button class="tab" onclick="showTab('stats')">📊 İstatistik</button>
+  </div>
+
+  <div class="content">
+    <!-- DAILY TAB -->
+    <div id="tab-daily">
+      <div class="date-nav">
+        <button onclick="changeDay(-1)">‹</button>
+        <div class="date-info">
+          <div class="weekday" id="weekday-lbl"></div>
+          <div class="date-str" id="date-lbl"></div>
+          <div class="is-today" id="today-badge"></div>
+        </div>
+        <button onclick="changeDay(1)">›</button>
+      </div>
+
+      <div class="prayers-grid" id="prayers-grid"></div>
+
+      <div class="progress-card">
+        <div class="progress-top">
+          <span>Günlük ilerleme</span>
+          <strong><span id="done-count">0</span>/6</strong>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="prog-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <button class="today-btn" onclick="goToday()">Bugüne Dön</button>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="tab-history" style="display:none;">
+      <div class="section-label">Son 30 gün</div>
+      <div class="history-list" id="history-list">
+        <div class="empty-msg">Yükleniyor...</div>
+      </div>
+    </div>
+
+    <!-- STATS TAB -->
+    <div id="tab-stats" style="display:none;">
+      <div class="section-label">Genel istatistikler</div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="section-label">Namaz başarı oranları</div>
+      <div id="prayer-stats"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRAYERS = [
+  { key: 'Sabah', icon: 'pi-sabah' },
+  { key: 'Öğle', icon: 'pi-ogle' },
+  { key: 'İkindi', icon: 'pi-ikindi' },
+  { key: 'Akşam', icon: 'pi-aksam' },
+  { key: 'Yatsı', icon: 'pi-yatsi' },
+  { key: 'Vitir', icon: 'pi-vitir' },
+];
+
+let currentDate = todayStr();
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function storageKey(d) { return 'namaz_kaza_' + d; }
+
+function loadDay(d) {
+  try { return JSON.parse(localStorage.getItem(storageKey(d)) || '{}'); } catch { return {}; }
+}
+
+function saveDay(d, data) {
+  localStorage.setItem(storageKey(d), JSON.stringify(data));
+}
+
+function formatDateTR(str) {
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function weekdayTR(str) {
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('tr-TR', { weekday: 'long' });
+}
+
+function render() {
+  const isToday = currentDate === todayStr();
+  document.getElementById('weekday-lbl').textContent = weekdayTR(currentDate);
+  document.getElementById('date-lbl').textContent = formatDateTR(currentDate);
+  document.getElementById('today-badge').textContent = isToday ? '— Bugün —' : '';
+
+  const data = loadDay(currentDate);
+  const grid = document.getElementById('prayers-grid');
+  grid.innerHTML = '';
+  let done = 0;
+  PRAYERS.forEach(p => {
+    const isDone = !!data[p.key];
+    if (isDone) done++;
+    const card = document.createElement('div');
+    card.className = 'prayer-card' + (isDone ? ' done' : '');
+    card.innerHTML = `
+      <div class="prayer-icon"><span class="${p.icon}"></span></div>
+      <div class="prayer-name">${p.key}</div>
+      <div class="prayer-check">${isDone ? '✓ Kılındı' : 'Kılınmadı'}</div>
+    `;
+    card.onclick = () => toggle(p.key);
+    grid.appendChild(card);
+  });
+  document.getElementById('done-count').textContent = done;
+  document.getElementById('prog-fill').style.width = Math.round(done / 6 * 100) + '%';
+}
+
+function toggle(prayer) {
+  const data = loadDay(currentDate);
+  if (data[prayer]) { delete data[prayer]; } else { data[prayer] = true; }
+  saveDay(currentDate, data);
+  render();
+}
+
+function changeDay(delta) {
+  const d = new Date(currentDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  currentDate = d.toISOString().slice(0, 10);
+  render();
+}
+
+function goToday() {
+  currentDate = todayStr();
+  render();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  const today = todayStr();
+  let hasData = false;
+  for (let i = 0; i < 30; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const str = d.toISOString().slice(0, 10);
+    const data = loadDay(str);
+    const keys = Object.keys(data).filter(k => data[k]);
+    if (keys.length === 0) continue;
+    hasData = true;
+    const count = PRAYERS.filter(p => data[p.key]).length;
+    const row = document.createElement('div');
+    row.className = 'history-row' + (str === today ? ' today-row' : '');
+    const dayLabel = str === today ? 'Bugün' : new Date(str + 'T12:00:00').toLocaleDateString('tr-TR', { weekday: 'short' });
+    const dateLabel = new Date(str + 'T12:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+    const dots = PRAYERS.map(p => `<div class="h-dot ${data[p.key] ? 'done' : ''}" title="${p.key}"></div>`).join('');
+    row.innerHTML = `
+      <div class="h-date"><strong>${dayLabel}</strong>${dateLabel}</div>
+      <div class="h-dots">${dots}</div>
+      <div class="h-count ${count === 6 ? 'full' : ''}">${count}/6</div>
+    `;
+    list.appendChild(row);
+  }
+  if (!hasData) {
+    list.innerHTML = '<div class="empty-msg">Henüz kayıtlı gün yok.<br>Namazlarını işaretlemeye başla!</div>';
+  }
+}
+
+function renderStats() {
+  const grid = document.getElementById('stats-grid');
+  const pstats = document.getElementById('prayer-stats');
+  let totalDays = 0, totalPrayers = 0, fullDays = 0;
+  const pCounts = {};
+  PRAYERS.forEach(p => pCounts[p.key] = 0);
+
+  for (let i = 0; i < 365; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const str = d.toISOString().slice(0, 10);
+    const data = loadDay(str);
+    const count = PRAYERS.filter(p => data[p.key]).length;
+    if (count > 0) {
+      totalDays++;
+      totalPrayers += count;
+      if (count === 6) fullDays++;
+      PRAYERS.forEach(p => { if (data[p.key]) pCounts[p.key]++; });
+    }
+  }
+
+  const avg = totalDays > 0 ? (totalPrayers / totalDays).toFixed(1) : '0';
+  grid.innerHTML = `
+    <div class="stat-card"><div class="stat-val">${totalDays}</div><div class="stat-lbl">Kayıtlı gün</div></div>
+    <div class="stat-card"><div class="stat-val">${totalPrayers}</div><div class="stat-lbl">Toplam namaz</div></div>
+    <div class="stat-card"><div class="stat-val">${fullDays}</div><div class="stat-lbl">Tam kılınan gün</div></div>
+    <div class="stat-card"><div class="stat-val">${avg}</div><div class="stat-lbl">Günlük ortalama</div></div>
+  `;
+
+  pstats.innerHTML = PRAYERS.map(p => {
+    const pct = totalDays > 0 ? Math.round(pCounts[p.key] / totalDays * 100) : 0;
+    return `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span style="color:var(--text);">${p.key}</span>
+          <span style="color:var(--green);font-weight:600;">%${pct}</span>
+        </div>
+        <div style="background:var(--beige);border-radius:6px;height:7px;overflow:hidden;">
+          <div style="height:7px;background:var(--green);border-radius:6px;width:${pct}%;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function showTab(tab) {
+  ['daily', 'history', 'stats'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['daily','history','stats'][i] === tab);
+  });
+  if (tab === 'history') renderHistory();
+  if (tab === 'stats') renderStats();
+}
+
+render();
+</script>
+</body>
+</html>
